@@ -1,0 +1,6 @@
+,p_value
+Sign-flip permutation (mean),4.999750012499375e-05
+Sign test (median),2.4486242498060206e-27
+Bootstrap t-test (mean),4.999750012499375e-05
+Classical t-test,1.3010183692760033e-25
+Wilcoxon signed-rank,1.838297604931251e-17
