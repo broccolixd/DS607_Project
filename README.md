@@ -1,53 +1,43 @@
-# DS607_Project
 # Are U.S. Import Tariff Burdens Different Across Commodity Categories?
+
+DS607 – Statistics for Data Science | Singapore Management University (SMU)
 
 ## 1. Project Overview
 
-This project investigates changes in U.S. import tariff burdens following the 2025 trade policy changes. Using monthly U.S. import statistics from the U.S. Census Bureau, the analysis examines whether effective tariff rates increased across commodity categories and whether these changes were widespread or concentrated in particular categories.
+This project investigates changes in U.S. import tariff burdens following the 2025 trade policy changes. Using monthly U.S. import statistics from the U.S. Census Bureau, it examines whether effective tariff rates increased across commodity categories and whether the increase was widespread or concentrated in a few categories.
 
-The project uses statistical inference and resampling methods to evaluate changes in effective tariff rates between a pre-policy and post-policy period.
-
-Rather than focusing solely on the overall aggregate tariff rate, this study examines differences across 96 HS-2 commodity chapters to understand how tariff changes were distributed across the U.S. import market.
+The analysis compares a pre-policy and a post-policy period using classical, resampling-based and Bayesian inference. Rather than focusing only on the overall aggregate tariff rate, it studies 96 HS-2 commodity chapters to understand how the change was distributed across the U.S. import market.
 
 ### Research Questions
 
-The main research question is:
+**Main question:** Did U.S. import tariff burdens change significantly across commodity categories following the 2025 trade policy changes?
 
-**Did U.S. import tariff burdens change significantly across commodity categories following the 2025 trade policy changes?**
-
-The supporting research questions are:
+Supporting questions:
 
 1. Did effective U.S. import tariff rates increase between the pre-policy and post-policy periods?
-2. Were tariff increases widespread across commodity categories, or were they concentrated in specific categories?
-3. How does the average change across individual commodity categories compare with the import-weighted aggregate change?
+2. Were tariff increases widespread across commodity categories, or concentrated in specific ones?
+3. How does the average change across individual commodity chapters compare with the import-weighted aggregate change?
 4. Is there an association between commodity groups and the magnitude of effective tariff rate changes?
 
 ---
 
 ## 2. Data Source
 
-The dataset is obtained from the **U.S. Census Bureau's monthly U.S. import statistics**.
+The data comes from the **U.S. Census Bureau's monthly U.S. import statistics**, retrieved through the Census Data API (the collection code is in the appendix of the notebook; it was run once and the result saved as CSV).
 
-The data contains monthly import information at the Harmonized System (HS) 2-digit commodity chapter level.
-
-- **Geographical coverage:** United States
-- **Frequency:** Monthly
+- **Coverage:** United States, monthly, July 2023 – August 2026 (38 months)
 - **Unit of analysis:** HS-2 commodity chapters
-- **Number of commodity chapters:** 96
-- **Data format:** CSV
-
-The raw dataset is stored in `data/census_import.csv`.
+- **Chapters:** 98 in the raw file; chapters 98 and 99 (special classification and special import provisions) are excluded, leaving **96 chapters**
+- **Format:** CSV, stored at `data/census_import.csv`
 
 ### Study Periods
 
-The analysis compares two periods:
-
 | Period | Date range |
 |---|---|
-| Pre-policy period | March 2024 – December 2024 |
-| Post-policy period | March 2025 – December 2025 |
+| Pre-policy | March 2024 – December 2024 |
+| Post-policy | March 2025 – December 2025 |
 
-The analysis aggregates monthly import and calculated duty values within each period to obtain comparable effective tariff rates for each commodity chapter.
+Monthly values are summed within each period for each chapter, and effective tariff rates are computed from the totals. Chapters with pre-period imports below USD 10 million are dropped (this filter did not remove any of the 96 chapters).
 
 ---
 
@@ -57,226 +47,224 @@ The analysis aggregates monthly import and calculated duty values within each pe
 
 | Variable | Description |
 |---|---|
-| `date` | YYYY-MM of the observation |
+| `time` | Month of the observation (YYYY-MM) |
 | `I_COMMODITY` | HS-2 commodity chapter code |
-| `I_COMMODITY_SDESC` | Short description of the commodity chapter |
+| `I_COMMODITY_SDESC` | Short description of the chapter |
 | `GEN_VAL_MO` | General import value |
-| `CAL_DUT_MO` | Calculated duties collected during the month |
-| `CON_VAL_MO` | Consumption import customs value during the month |
-| `DUT_VAL_MO` | Duitable import value |
+| `CON_VAL_MO` | Consumption import customs value |
+| `DUT_VAL_MO` | Dutiable import value |
+| `CAL_DUT_MO` | Calculated duties collected |
 
 ### Derived variables
 
 | Variable | Description |
 |---|---|
-| `etr_con` | Calculated duties divided by customs value |
-| `etr_dut` | Calculated duties divided by dutiable value |
-| `etr_pre` | Effective tariff rate during the pre-policy period |
-| `etr_post` | Effective tariff rate during the post-policy period |
-
-The main effective tariff rate measures are calculated as:
-
-**Effective tariff rate based on customs value:**
+| `etr_con` | Calculated duties ÷ customs value (main measure) |
+| `etr_dut` | Calculated duties ÷ dutiable value |
+| `etr_con_pre`, `etr_con_post` | `etr_con` over the pre- and post-policy windows |
+| `d_etr` | Change in effective tariff rate, post minus pre |
 
 $$
-ETR_{con} = \frac{CAL\_DUT\_MO}{CON\_VAL\_MO}
+ETR_{con} = \frac{CAL\_DUT}{CON\_VAL}, \qquad
+ETR_{dut} = \frac{CAL\_DUT}{DUT\_VAL}
 $$
-
-**Effective tariff rate based on dutiable value:**
-
-$$
-ETR_{dut} = \frac{CAL\_DUT\_MO}{DUT\_VAL\_MO}
-$$
-
-The change in effective tariff rate is calculated as:
 
 $$
 \Delta ETR_i = ETR_{post,i} - ETR_{pre,i}
 $$
 
-where $i$ represents an individual HS-2 commodity chapter.
-
-A positive value indicates an increase in the effective tariff rate, while a negative value indicates a decrease.
+where $i$ indexes an HS-2 chapter. A positive value means the effective rate rose. Rates are stored as fractions, so a change of 0.0837 equals 8.4 percentage points.
 
 ---
 
 ## 4. Methodology
 
-The project applies statistical inference to examine changes in effective tariff rates across commodity categories.
+### 4.1 Exploratory Data Analysis
 
-### 4.1 Exploratory Data Analysis (EDA)
-
-Exploratory analysis is conducted to understand the structure and distribution of the import data.
-
-This includes:
-
-- Examining missing values and data consistency.
-- Investigating monthly import and calculated duty trends.
-- Comparing effective tariff rates across commodity categories.
-- Examining the distribution of pre-policy and post-policy effective tariff rates.
-- Identifying potential outliers and unusually large changes.
+- Checking missing values, duplicate chapter-months and data consistency.
+- Monthly aggregate effective tariff rate over time.
+- Distribution of chapter-level changes (histogram, boxplot, ECDF) and outlier identification.
+- Concentration analysis: how much of the total duty increase comes from the largest chapters.
+- Association between import size, pre-period rate and the size of the change (Pearson and Kendall's tau with bootstrap intervals).
 
 ### 4.2 Chapter-Level Comparison
 
-Each HS-2 commodity chapter is treated as an observation.
-
-The pre-policy and post-policy effective tariff rates are calculated for each of the 96 commodity chapters.
-
-The change in effective tariff rate is then calculated:
+Each chapter is one observation. The primary estimand is the unweighted average change, which gives every chapter equal weight regardless of import size:
 
 $$
-\Delta ETR_i = ETR_{post,i} - ETR_{pre,i}
+\theta_A = \frac{1}{n}\sum_{i=1}^{n}\Delta ETR_i, \qquad n = 96
 $$
 
-The primary estimand is the average change across commodity chapters:
+### 4.3 Frequentist and Bootstrap Confidence Intervals
+
+95% intervals for $\theta_A$:
+
+- Classical CLT interval using the t-distribution
+- Bootstrap percentile interval
+- Bootstrap basic interval
+- Bootstrap-t interval
+
+### 4.4 Bayesian Credible Interval
+
+To complement the frequentist intervals, the mean chapter change $\mu$ is also estimated in a Bayesian framework.
+
+**Model.** Chapter changes are treated as $\Delta ETR_i \sim N(\mu, \sigma^2)$ with a conjugate Normal-Inverse-Gamma prior:
 
 $$
-\theta_A = \frac{1}{n}\sum_{i=1}^{n}\Delta ETR_i
+\mu \mid \sigma^2 \sim N\!\left(\mu_0, \frac{\sigma^2}{\kappa_0}\right), \qquad
+\sigma^2 \sim \text{Inv-Gamma}(a_0, b_0)
 $$
 
-where:
-
-- $n$ = number of commodity chapters (96).
-- $\Delta ETR_i$ = change in effective tariff rate for chapter $i$.
-- $\theta_A$ = average chapter-level change.
-
-This gives each commodity chapter equal weight, regardless of its import size.
-
-### 4.3 Confidence Interval Estimation
-
-Several confidence interval approaches are used to quantify uncertainty surrounding the average chapter-level change.
-
-These include:
-
-- Classical Central Limit Theorem (CLT) confidence interval using the t-distribution.
-- Bootstrap percentile confidence interval.
-- Bootstrap basic confidence interval.
-- Bootstrap-t confidence interval.
-
-The bootstrap methods provide alternative ways to estimate uncertainty without relying entirely on the classical normal approximation.
-
-### 4.4 Hypothesis Testing
-
-Hypothesis tests are conducted to investigate whether the observed changes are statistically significant.
-
-The analysis includes:
-
-- Classical one-sample t-test.
-- Sign test.
-- Sign-flip permutation test.
-- Wilcoxon signed-rank test.
-- Bootstrap-based hypothesis testing.
-
-The tests examine whether the changes in effective tariff rates are systematically positive rather than arising from random variation.
-
-### 4.5 Import-Weighted Aggregate Comparison
-
-In addition to the chapter-level analysis, the project calculates an aggregate effective tariff rate using total calculated duties relative to total customs value.
+The posterior is available in closed form, and the marginal posterior of $\mu$ is a Student-t distribution with $2a_n$ degrees of freedom, location $\mu_n$ and scale $\sqrt{b_n / (a_n \kappa_n)}$, where
 
 $$
-ETR_{aggregate} =
-\frac{\sum_i CAL\_DUT_i}
-{\sum_i CON\_VAL_i}
+\kappa_n = \kappa_0 + n, \quad
+\mu_n = \frac{\kappa_0\mu_0 + n\bar{x}}{\kappa_n}, \quad
+a_n = a_0 + \frac{n}{2}, \quad
+b_n = b_0 + \tfrac{1}{2}\sum_i (x_i-\bar{x})^2 + \frac{\kappa_0 n(\bar{x}-\mu_0)^2}{2\kappa_n}
 $$
 
-The aggregate change is then compared with the average chapter-level change.
+The **95% credible interval** is the central 2.5%–97.5% range of this posterior. Three priors are compared to check how sensitive the result is to prior choice:
 
-This distinction is important because the two measures answer different questions:
+| Prior | $\mu_0$ | $\kappa_0$ | $a_0$ | $b_0$ | Description |
+|---|---:|---:|---:|---:|---|
+| Reference (flat) | 0 | 0 | −0.5 | 0 | Non-informative; reproduces the classical t-interval |
+| Weak, centred at 0 | 0 | 1 | 1 | 0.0025 | Worth about one observation at zero |
+| Sceptical | 0 | 20 | 1 | 0.0025 | Worth about 20 observations centred at zero (no change) |
 
-- **Chapter-level average:** What is the average change experienced by a commodity chapter?
-- **Import-weighted aggregate:** How much did the overall effective tariff burden change after accounting for differences in import values?
+Besides the interval, the posterior probabilities $P(\mu > 0)$ and $P(\mu > 0.05)$ are reported, where 0.05 (5 percentage points) is used as the threshold for a practically meaningful increase.
 
-A large commodity category can have a much greater influence on the aggregate rate than a smaller category.
+### 4.5 Hypothesis Testing
 
-### 4.6 Chi-Square Test and Cramér's V
+- Classical one-sample t-test
+- Sign test (median)
+- Sign-flip permutation test (mean)
+- Wilcoxon signed-rank test
+- Bootstrap-t test (mean)
 
-A chi-square test of independence is used to investigate the association between commodity groups and categories of effective tariff rate changes.
+### 4.6 Import-Weighted Aggregate Comparison
 
-Cramér's V is calculated to measure the strength of the association.
+The aggregate effective rate uses total duties relative to total customs value, so large chapters carry more weight:
 
-A heatmap is also used to visualise the distribution of observations across commodity groups and effective tariff rate change categories.
+$$
+ETR_{aggregate} = \frac{\sum_i CAL\_DUT_i}{\sum_i CON\_VAL_i}
+$$
+
+Its change is estimated with a jackknife Wald interval and percentile, basic and bootstrap-t intervals, and compared with the unweighted chapter-level average.
+
+- **Chapter-level average:** the change experienced by the typical commodity chapter.
+- **Import-weighted aggregate:** the change in the overall tariff burden on total imports.
+
+### 4.7 Chi-Square Test and Cramér's V
+
+Chapters are placed in five commodity groups (agriculture and food; minerals, chemicals, plastics and rubber; leather, wood, paper, textiles and footwear; stone, glass, jewellery and base metals; machinery, transport, instruments and miscellaneous) and the change is cut into terciles (Low, Mid, High). A chi-square test of independence and Cramér's V measure the association, and a stacked bar chart shows the distribution.
+
+### 4.8 Reproducibility
+
+All random procedures (bootstrap, permutation, Kendall's tau bootstrap) use a fixed seed (`SEED = 607`) set at the top of the notebook, so results are reproducible.
 
 ---
 
 ## 5. Key Findings
 
-The analysis produces several important findings.
-
 ### 5.1 Chapter-Level Changes
 
-Across the 96 HS-2 commodity chapters:
+Across the 96 HS-2 chapters:
 
-- The average change in effective tariff rates was approximately **0.0673**.
-- Approximately **99% of commodity chapters experienced positive changes**.
-- The median change was approximately **0.0596**.
+- The mean change in effective tariff rate was **0.0837** (about 8.4 percentage points).
+- The median change was **0.0786**, close to the mean, so outliers are not driving the result.
+- **95 of 96 chapters (99%)** saw an increase. The only decrease was Mineral fuel, oil etc. (−0.0005, effectively zero).
+- The distribution is moderately right-skewed (skewness 1.12, excess kurtosis 1.93). Four upper outliers were flagged: umbrellas and walking-sticks, prepared feathers and artificial flowers, aluminium, and iron and steel articles (the last two rose by about 27–29 points).
 
-These findings suggest that the increase was broad-based rather than limited to a small number of commodity categories.
+The increase was broad-based rather than limited to a few chapters.
 
-### 5.2 Confidence Intervals
+### 5.2 Confidence Intervals (frequentist)
 
-The estimated 95% confidence intervals for the average chapter-level change were:
+95% intervals for the mean chapter-level change:
 
-| Method | Lower bound | Upper bound |
-|---|---:|---:|
-| CLT (t-distribution) | 0.0571 | 0.0776 |
-| Bootstrap percentile | 0.0577 | 0.0779 |
-| Bootstrap basic | 0.0567 | 0.0770 |
-| Bootstrap-t | 0.0580 | 0.0792 |
+| Method | Lower | Upper | Width |
+|---|---:|---:|---:|
+| CLT (t-distribution) | 0.0721 | 0.0952 | 0.0231 |
+| Bootstrap percentile | 0.0728 | 0.0953 | 0.0225 |
+| Bootstrap basic | 0.0720 | 0.0945 | 0.0225 |
+| Bootstrap-t | 0.0730 | 0.0964 | 0.0235 |
 
-All four confidence intervals are above zero, providing evidence of a positive average change in effective tariff rates.
+All four intervals are nearly identical and lie well above zero, so the result does not depend on a normality assumption.
 
-### 5.3 Hypothesis Testing
+### 5.3 Bayesian Credible Interval
 
-The statistical tests also provide evidence against the null hypothesis of no systematic increase.
+95% credible intervals for the mean chapter-level change $\mu$:
+
+| Prior | Posterior mean | 95% credible interval | $P(\mu>0)$ | $P(\mu>0.05)$ |
+|---|---:|---:|---:|---:|
+| Reference (flat) | 0.0837 | [0.0721, 0.0952] | 1.0000 | 1.0000 |
+| Weak, centred at 0 | 0.0828 | [0.0713, 0.0943] | 1.0000 | 1.0000 |
+| Sceptical (20 obs at 0) | 0.0693 | [0.0571, 0.0814] | 1.0000 | 0.9989 |
+
+Interpretation:
+
+- With the flat reference prior, the credible interval is identical to the classical t-interval [0.0721, 0.0952], as expected. The Bayesian reading is the direct one: given the data and the model, there is a 95% posterior probability that the true mean change lies in this range.
+- A weak prior centred at zero barely moves the result.
+- Even a sceptical prior, worth 20 observations of "no change", pulls the posterior mean down only to 0.0693. The credible interval stays well above zero and above the 0.05 threshold, with $P(\mu>0.05) = 0.9989$.
+- The conclusion that the average chapter-level increase is positive and substantial does not depend on prior choice.
+
+The posterior density (weak prior) with its credible interval shaded is plotted in the notebook and saved in `outputs/figures/`.
+
+### 5.4 Hypothesis Tests
 
 | Test | p-value |
 |---|---:|
-| Sign-flip permutation test | 0.000050 |
+| Sign-flip permutation test | 5.0 × 10⁻⁵ (< 0.0001) |
+| Bootstrap-t test | 5.0 × 10⁻⁵ (< 0.0001) |
 | Sign test | 2.45 × 10⁻²⁷ |
-| Bootstrap-t test | 0.000050 |
-| Classical t-test | 6.69 × 10⁻²³ |
+| Classical t-test | 1.30 × 10⁻²⁵ |
 | Wilcoxon signed-rank test | 1.84 × 10⁻¹⁷ |
 
-The results consistently indicate statistically significant positive changes across commodity chapters.
+All five tests reject "no change". The two resampling p-values are the smallest the procedure can return (1/(B+1) with B = 20,000), so they are reported as p < 0.0001 rather than exact values.
 
-### 5.4 Aggregate vs Chapter-Level Comparison
+### 5.5 Aggregate vs Chapter-Level Comparison
 
-The import-weighted aggregate change was approximately **0.0595**, compared with the unweighted chapter-level average of **0.0673**.
+| Measure | Change | 95% interval (percentile) |
+|---|---:|---:|
+| Unweighted chapter mean | 0.0837 | [0.0728, 0.0953] |
+| Import-weighted aggregate | 0.0682 | [0.0488, 0.0947] |
 
-The difference highlights the importance of accounting for import size when interpreting the overall tariff burden.
+Other aggregate intervals: Wald (jackknife) [0.0442, 0.0921], basic [0.0416, 0.0876], bootstrap-t [0.0424, 0.0978].
 
-The average chapter-level change is larger than the aggregate change, suggesting that smaller commodity categories may have experienced relatively larger increases than the categories carrying greater import values.
+- The aggregate change is **lower** than the unweighted mean. Large chapters such as machinery (ch. 84, +4.8 points) and electrical equipment (ch. 85, +6.9 points) rose by less than the typical small chapter, while metals, toys and apparel rose more but carry less trade.
+- The aggregate intervals are about twice as wide (roughly 0.046–0.055 against 0.023), because a few large chapters dominate the total.
+- The top 5 chapters account for about 61% of the net increase in duties collected and the top 10 for about 75%, while those 10 chapters hold about 58% of pre-period imports.
+
+### 5.6 Association with Commodity Group
+
+- Pre-period import size is almost unrelated to the size of the change (Pearson r = −0.08, Kendall's tau = −0.08, p = 0.24).
+- Chapters with a higher pre-period effective rate tended to see larger increases (Kendall's tau = 0.48).
+- Chi-square test of commodity group against change tercile: $\chi^2 = 30.67$, df = 8, p = 0.0002, **Cramér's V = 0.40**, a moderately strong association.
+- The increase was concentrated in *Leather, wood, paper, textiles and footwear* (17 of 27 chapters in the High tercile) and weakest in *Agriculture and food* (1 of 24 in the High tercile).
 
 ---
 
 ## 6. Repository Structure
 
-The repository is organised as follows:
-
 ```text
 DS607_Project/
 │
-├── data/
-│   └── census_import.csv
+├── README.md                  Project overview, methods and findings
+├── AI_USAGE.md                Disclosure of how AI tools were used
+├── CONTRIBUTIONS.md           Contribution of each team member
+├── requirements.txt           Python dependencies (or environment.yml)
 │
-├── outputs/
-│   ├── figures/
-│   │   └── (generated visualisations)
-│   │
-│   └── tables/
-│       └── (generated statistical tables)
+├── data/
+│   └── census_import.csv      Raw Census import data
 │
 ├── notebooks/
-│   └── (analysis notebooks, if applicable)
+│   └── DS607_Project.ipynb    Full analysis (data prep, inference, Bayesian, tests)
 │
-└── README.md
+└── outputs/
+    ├── figures/               Generated figures
+    ├── tables/                Generated tables (intervals, tests, Bayesian results)
+    └── presentation/          Presentation PDF
 ```
-
-- `data/`: Contains the original import dataset.
-- `outputs/figures/`: Stores generated figures and visualisations.
-- `outputs/tables/`: Stores statistical results, confidence intervals and summary tables.
-- `notebooks/`: Contains the Python notebooks used for data processing and statistical analysis.
-- `README.md`: Provides an overview of the project, data and methodology.
 
 ---
 
@@ -284,70 +272,52 @@ DS607_Project/
 
 ### Requirements
 
-The analysis is conducted using Python.
-
-Required libraries include:
+Python 3.10 or later. Install the dependencies:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scipy statsmodels
+pip install -r requirements.txt
 ```
+
+The main libraries are pandas, numpy, matplotlib, seaborn and scipy (`requests` is only needed for the data-collection appendix).
 
 ### Running the Analysis
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/broccolixd/DS607_Project.git
-```
+   ```bash
+   git clone https://github.com/broccolixd/DS607_Project.git
+   cd DS607_Project
+   ```
 
-2. Navigate to the project directory:
+2. Install the requirements (above).
+3. Open `notebooks/DS607_Project.ipynb` in Jupyter Notebook or VS Code.
+4. Run all cells from top to bottom.
 
-```bash
-cd DS607_Project
-```
-
-3. Install the required Python libraries.
-
-4. Open the analysis notebook in Jupyter Notebook or VS Code.
-
-5. Run the notebook cells sequentially.
-
-The notebook reads the dataset from the `data/` directory and saves generated figures and tables under `outputs/`.
+The notebook reads `data/census_import.csv` using a relative path and writes figures and tables to `outputs/figures/` and `outputs/tables/`. Random seeds are fixed, so results are reproducible. The Appendix cells that call the Census API require a Census API key and are not needed to reproduce the analysis, since the downloaded data is included.
 
 ---
 
 ## 8. Limitations
 
-Several limitations should be considered when interpreting the findings:
-
-1. **Effective tariff rates are not statutory tariff rates.** They represent calculated duties relative to import values and may be influenced by the composition of imports and the share of dutiable goods.
-
-2. **Differences in import values:** The unweighted chapter-level average treats every commodity chapter equally, whereas the aggregate effective tariff rate reflects differences in import sizes.
-
-3. **Temporal and economic factors:** Changes in effective tariff rates may also reflect changes in import composition, trade patterns, exemptions and other economic factors.
-
-4. **Causal interpretation:** The pre-policy and post-policy comparison identifies changes over time but does not, by itself, establish that the policy changes caused the observed increases.
-
-5. **Statistical dependence:** Commodity-level observations may not be completely independent, and the inference methods should be interpreted with this consideration in mind.
+1. **Effective rates are not statutory rates.** They are duties collected relative to import value and can change when the product or country mix changes.
+2. **Before/after design with no control group.** The comparison describes the change but does not show that the policy caused it.
+3. **HS-2 chapters are broad** and can hide large differences between individual products.
+4. **Window-specific result.** The post window ends in December 2025, and the aggregate rate fell in 2026, so the findings apply to this window only.
+5. **Dependence between chapters.** Inference treats chapters as independent draws, but the 96 chapters are the full set of goods and related chapters move together. Very small p-values should be read as a sign of a large effect rather than exact probabilities.
+6. **Bayesian model assumptions.** The credible interval assumes approximately normal chapter changes. The data are right-skewed with heavy tails, which is why it is read alongside the bootstrap intervals; the priors are illustrative and were chosen to test sensitivity, not elicited from experts.
+7. **Judgement calls.** The USD 10 million import filter, the commodity group boundaries, the tercile cut and the 0.05 "meaningful increase" threshold were not tested for sensitivity. Chi-square expected counts in the smallest group fall slightly below 5, and binning discards information (a Kruskal-Wallis test on the raw changes is a natural follow-up).
 
 ---
 
 ## 9. Conclusion
 
-This project examines changes in U.S. import tariff burdens across 96 HS-2 commodity chapters using monthly import statistics.
-
-The findings indicate a broad-based increase in effective tariff rates across commodity categories, supported by confidence interval estimation and multiple hypothesis testing approaches.
-
-Comparing the unweighted chapter-level average with the import-weighted aggregate measure further demonstrates that the overall tariff burden and the average experience of an individual commodity chapter can differ.
-
-Overall, the project illustrates how statistical inference, bootstrap methods and distributional analysis can be used to investigate changes in international trade patterns and tariff burdens.
+Effective U.S. import tariff rates rose across almost every HS-2 chapter between March–December 2024 and March–December 2025: by about 8.4 percentage points for the average chapter and 6.8 points for the import-weighted aggregate. The result is consistent across the t-interval, three bootstrap intervals, five hypothesis tests and Bayesian credible intervals under flat, weak and sceptical priors, and it is largest in textiles, leather, wood and paper goods and smallest in agriculture and food. The gap between the chapter-level and aggregate figures shows that the burden on the typical chapter and the burden on total imports are different quantities.
 
 ---
 
-## 10. Author and Course Information
+## 10. Course Information
 
-**Course:** DS607 – Statistics for Data Science  
-**Institution:** Singapore Management University (SMU)  
-**Project:** Group Research Project  
-**Data Source:** U.S. Census Bureau – Monthly U.S. Import Statistics
-
+**Course:** DS607 – Statistics for Data Science
+**Institution:** Singapore Management University (SMU)
+**Project:** Group Research Project
+**Data source:** U.S. Census Bureau – Monthly U.S. Import Statistics
